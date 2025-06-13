@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+    <meta charset="UTF-8" />
+    <title>LSTM Next Word Prediction mit TensorFlow.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.8.0/dist/tf.min.js"></script>
+    </head>
+    <body>
+        <script>
+        let vocab, word2index, index2word, sequenceLength = 4, vocabSize, model;
+
+        // One-Hot-Encoding Funktionen
+        function oneHotEncodeSequence(sequence, vocabSize) {
+            return sequence.map(idx => {
+                const oneHot = new Array(vocabSize).fill(0);
+                oneHot[idx] = 1;
+                return oneHot;
+            });
+        }
+
+        function oneHotEncodeTargets(targets, vocabSize) {
+            return targets.map(idx => {
+                const oneHot = new Array(vocabSize).fill(0);
+                oneHot[idx] = 1;
+                return oneHot;
+            });
+        }
+
+        // Funktion um Wortindex in Wort umzuwandeln
+        function idx2word(idx) {
+            return index2word[idx] || '<unk>';
+        }
+
+
+        async function saveModel() {
+            if (!model) {
+                console.log('Kein Modell zum Speichern!');
+                return;
+            }
+            await model.save('downloads://lstm-v0');
+            console.log('Modell wurde gespeichert.');
+        }
+
+        async function loadModel() {
+            const uploadEl = document.getElementById('upload-model');
+            if (!uploadEl.files.length) {
+                alert('Bitte zuerst Modelldateien auswählen');
+                return null;
+            }
+
+            const files = Array.from(uploadEl.files);
+
+            files.sort((a, b) => {
+                if (a.name.endsWith('.json') && b.name.endsWith('.bin')) return -1;
+                if (a.name.endsWith('.bin') && b.name.endsWith('.json')) return 1;
+                return 0;
+            });
+
+            if (files.length < 2) {
+                alert('Bitte beide Dateien (model.json und weights.bin) auswählen!');
+                return null;
+            }
+
+            if (!files[0].name.endsWith('.json') || !files[1].name.endsWith('.bin')) {
+                alert('Bitte sicherstellen, dass zuerst die JSON- und dann die BIN-Datei übergeben werden.');
+                return null;
+            }
+
+            try {
+                const model = await tf.loadLayersModel(tf.io.browserFiles(files));
+                alert('Modell erfolgreich geladen!');
+                window.model = model;
+                console.log(model);
+                return model;  // <--- Hier das Modell zurückgeben!
+            } catch (e) {
+                console.error(e);
+                alert('Fehler beim Laden des Modells: ' + e.message);
+                return null;
+            }
+        }
+
+        async function loadModelWeb(modelUrl) {
+            if (!modelUrl || typeof modelUrl !== 'string') {
+                alert('Bitte eine gültige Modell-URL angeben!');
+                return null;
+            }
+
+            try {
+                const model = await tf.loadLayersModel(modelUrl);
+                console.log('Modell erfolgreich geladen!');
+                window.model = model;
+                console.log(model);
+                return model;
+            } catch (e) {
+                console.error('Fehler beim Laden des Modells:', e);
+                alert('Fehler beim Laden des Modells: ' + e.message);
+                return null;
+            }
+        }
+        
+        // --- Modell bauen ---
+        function createModel(sequenceLength, vocabSize) {
+            model = tf.sequential();
+
+            model.add(tf.layers.lstm({
+                units: 100,
+                returnSequences: true,
+                inputShape: [sequenceLength, vocabSize]
+            }));
+
+            model.add(tf.layers.lstm({
+                units: 100,
+                returnSequences: false
+            }));
+
+            model.add(tf.layers.dense({
+                units: vocabSize,
+                activation: 'softmax'
+            }));
+
+            const optimizer = tf.train.adam(0.01);
+
+            model.compile({
+                optimizer,
+                loss: 'categoricalCrossentropy',
+                metrics: ['accuracy']
+            });
+
+            return model;
+        }
+
+        // --- Datenvorbereitung ---
+        // 1. Beispiel-Text (hier: klein halten, ersetze durch deinen Text)
+        const text = `Eines Sommers waren einige Leute, wie sie zu tun pflegten, zum Fischen
+                            auf Selö im Reydarfjord. Und es traf sich, als der getrocknete Fisch
+                            ans Land gebracht wurde, daß ein großer Teil der Fische des Pfarrers
+                            von Holme in der Fischbude zurückblieb. Das Wetter verschlechterte sich
+                            in dem Maße, daß man an die Fische nicht herankonnte, bis im Herbst
+                            wieder gutes Seewetter wurde. Da zogen sie hinaus, um sie zu holen
+                            und begannen sofort, die Fische aus der Hütte ins Boot zu tragen. Die
+                            Bootsleute sagten, sie würden gern nach der anderen Seite der Insel
+                            gehen, um nachzusehen, ob etwas ans Land getrieben sei. Einer von
+                            ihnen erklärte sich bereit zu gehen, während die anderen die Fische
+                            hinuntertrugen. Er ging also, und die anderen trugen die Beute in das
+                            Boot. Plötzlich stieg das Wasser so gewaltig, daß es ihnen nur mit
+                            knapper Not gelang, die Fische in das Boot zu schleppen. Sie schifften
+                            sich alle ein und warteten eine Weile auf den Abwesenden; als er aber
+                            kam, war es der Brandung wegen unmöglich, ihn ins Boot zu ziehen; da
+                            riefen sie ihm zu, daß er nun dableiben müßte, sie würden ihn aber am
+                            nächsten Tag holen, wenn Seewetter wäre. Sie glaubten wohl, daß es am
+                            besten sei, an ihr eigenes Leben zu denken, und steuerten dem Lande zu;
+                            er aber blieb hilflos zurück.
+
+                            Es stellten sich Tauschnee und Windstille ein, und der Mann ging
+                            deshalb nach der Fischerhütte, ohne einen Ausweg zu wissen, und dort
+                            blieb er bis zum Abend. Da begann er zu verzweifeln und dachte, es
+                            läge ihm näher, sich das Leben zu nehmen, als dort Hungers zu sterben,
+                            und er lief aus der Hütte hinaus. Da entdeckte er einen freundlichen
+                            Stern; er glaubte aber, daß es in dieser wolkenschwarzen Nacht kein
+                            Himmelsstern sein könnte, und als er anfing, genauer hinzusehen, schien
+                            er ihm einem Licht in einem Fenster zu ähneln. Er lief eine kleine
+                            Weile, bis er an ein Haus kam, das so prächtig war, daß es einer
+                            Königshalle glich. Er hörte, wie drinnen gesagt wurde:
+
+                            »Ja, Mädchen, kein andrer als der unglückliche Mensch, der heute auf
+                            der Insel zurückgelassen worden ist, ist an das Haus gekommen; gehe
+                            hinaus und hole ihn; denn ich will nicht, daß er vor meiner Tür stirbt.«
+
+                            In demselben Augenblick trat ein junges Mädchen zu ihm; sie führte ihn
+                            hinein und sagte ihm, daß er seine Schneekleider ablegen solle. Dann
+                            führte sie ihn eine sehr hohe Treppe hinauf, in einen sehr schönen
+                            Saal, der mit Gold und Edelgestein geschmückt war. Da sah er viele
+                            Frauen, und eine unter ihnen war die schönste von allen. Er begrüßte
+                            sie mit Anstand, und sie erwiderten seinen Gruß. Da erhob sich die
+                            schöne Jungfrau und geleitete ihn in eine kleine, aber hübsche Kammer,
+                            setzte ihm Wein und Nahrung vor und ging dann wieder fort. Es wird
+                            nicht erzählt, wo ihm abends sein Schlaflager angewiesen wurde. Die
+                            Nacht verging also; aber am nächsten Morgen kam die Jungfrau zu ihm und
+                            sagte, daß sie nicht zu seinem Vergnügen dort bleiben dürfe, gab ihm
+                            aber sonst alles, was zu seinem Zeitvertreib dienen konnte.
+
+                            So verging der Winter bis Weihnachten. Am Heiligabend kam die schöne
+                            Jungfrau zu ihm und sagte, wenn er glaube, daß sie ihm etwas Gutes
+                            erwiesen hätte, dann müßte er ihr eine Bitte gewähren und sie ihr nicht
+                            abschlagen, nämlich daß er, wenn am nächsten Tage eine Tanzbelustigung
+                            abgehalten würde und ihr Vater sie rufen ließe, um sich das Spiel
+                            anzusehen, nicht neugierig sein und zum Fenster hinaussehen dürfe; denn
+                            sie würde ihm genug bringen, damit er sich hier drin zerstreuen könne.
+                            Er versprach ihr, daß er nicht neugierig sein würde. Am ersten Feiertag
+                            morgens brachte sie ihm Wein und was sonst zu seiner Nahrung dienen
+                            konnte, bot ihm Lebewohl und ging ihres Weges.
+
+                            Aber gleich darauf hörte er Gesang und Saitenspiel. Da dachte er
+                            bei sich, was für eine große Freude dort wohl herrsche, und daß es
+                            gewiß nichts schaden könnte, wenn er einen Augenblick hinauslugte; es
+                            brauchte ja niemand zu sehen.
+
+                            Da kletterte er in die Höhe, um den Tanz sehen zu können, und als er
+                            hinausblickte, sah er eine große Menge Menschen; einige tanzten, andere
+                            führten allerlei Saitenspiel aus, und mitten im Gedränge sah er einen
+                            königlichen Mann sitzen, eine Krone auf dem Haupt und eine Frau zu
+                            jeder Seite. Er dachte, das müßten die Königin und die Tochter des
+                            Königs sein; diese aber erkannte er wieder. Er wagte nun nicht länger
+                            hinauszusehen und ging vom Fenster fort. Der Tanz dauerte bis zum Abend.
+
+                            Als die Jungfrau aber dann zu ihm hereinkam, war sie wider ihre
+                            Gewohnheit schweigsam; jedoch sagte sie ihm, daß er sein Versprechen,
+                            nicht hinauszusehen, schlecht gehalten habe, obgleich sie es so habe
+                            einrichten können, daß ihr Vater es diesmal nicht gemerkt habe.
+
+                            Es ging nun auf Neujahr, ohne daß etwas geschah.
+
+                            In der Silvesternacht kam die Jungfrau zu ihm und sagte, daß sie am
+                            nächsten Tage mit ihrem Vater hinginge, um sich den Tanz anzusehen,
+                            und daß er ihr gegenüber sein Wort besser halten müßte, als er es zu
+                            Weihnachten getan habe, und nicht neugierig sein dürfe. Er versprach
+                            nun bei allem, was ihm heilig war, daß er diesmal nicht hinausblicken
+                            würde. Sie brachte ihm wieder Wein und Nahrung und allerlei
+                            Zeitvertreib und ging fort.
+
+                            Als es aber Morgen geworden war, hörte er noch mehr Lärm und Freude
+                            draußen als zu Weihnachten. Da sagte er sich, daß er jetzt nicht
+                            hinaussehen wolle, denn es wäre ja dasselbe wie zu Weihnachten, und
+                            viel verstrich vom Tage, während er ruhig dasaß. Da begann ihn aber die
+                            Neugierde zu quälen –so gar nichts von der großen Freude zu erfahren,
+                            – und er spähte hinaus und sah, daß der Tanz viel reizvoller als das
+                            vorige Mal war, denn es tanzten viele strahlende Ritter vor der Königin
+                            und dem König. Da zog er sich eiligst vom Fenster zurück, sah aber, daß
+                            niemand das Auge nach seinem Fenster wandte, und so ging es bis zum
+                            Abend. Als die Jungfrau aber am Abend zu ihm kam, war sie aufgebracht
+                            und machte ihm Vorwürfe, daß er sie abermals getäuscht hätte. Trotzdem
+                            trübte dies das Verhältnis zwischen ihnen nicht; denn sie war ihm genau
+                            so gut wie vordem.
+
+                            Der Winter verstrich, und so ging es auf Ostern. Am Osterheiligabend
+                            kam die Jungfrau zu ihm, sprach ihn freundlich an und bat ihn, am
+                            nächsten Tag ja nicht neugierig zu sein, auch wenn er hören sollte,
+                            daß die Freude groß wäre; denn wenn ihr Vater merke, daß sie ein
+                            männliches Wesen bei sich hätte, dann würde es sie das Leben kosten.
+                            Am Ostermorgen kam sie zu ihm und brachte ihm alles, was er sich nur
+                            hätte wünschen können, bot ihm Lebewohl und verließ ihn dann. Die
+                            Belustigung begann wieder wie zuvor. Aber als der Tag verging, begann
+                            die Einsamkeit ihn zu langweilen, und er ging aus seiner Kammer in die
+                            danebenliegende hinein; denn er dachte, die Jungfrau würde es nicht
+                            merken, wenn er von dort aus hinauslugte. Einen Augenblick spähte er
+                            hinaus und sah dasselbe wie zu Neujahr. Dann ging er in seine Kammer
+                            und blieb dort, bis die Jungfrau abends hereinkam. Da war sie unwillig
+                            gegen ihn und sagte, daß er sie heute im Stich gelassen hätte wie das
+                            vorige Mal; sie wüßte nicht, ob ihr Vater Wind von seinem Aufenthalt
+                            bekommen hätte, aber kühler wäre er gegen sie gewesen, als er zu sein
+                            pflegte; sie hätte nicht erwartet, daß er ihr so untreu sein würde, und
+                            er werde es wohl später in anderen Dingen auch sein.
+
+                            Der Frühling näherte sich, und am letzten Winterabend kam die Jungfrau
+                            zu ihm und sagte, daß morgen der erste Sommertag wäre, und daß dann
+                            Leute vom Festland kämen, um ihn zu holen, weshalb er in der Frühe nach
+                            der Fischerhütte gehen sollte; aber um eins wollte sie ihn bitten,
+                            wenn er Wert darauf lege, daß sie ihm das Leben während des Winters
+                            erhalten hätte; und das sei, daß er das Kind anerkennen solle, das sie
+                            jetzt durch ihn erwarte; denn es gälte ihr Leben, und wenn sie den
+                            Vater nicht angeben könne, dann würde ihr Vater sie töten. Aber wenn
+                            sie den Vater nennen könne, dann würde er sie nicht töten, und sie
+                            bitte ihn nun um weiter nichts, als daß er sich ihr gegenüber in dieser
+                            Angelegenheit treu erweisen solle. Das versprach er ihr, und er sagte,
+                            es werde nie geschehen, daß er leugne, der Vater des Kindes zu sein. Es
+                            koste ihn ja nichts, da er keine Ungelegenheit davon hätte.
+                            
+                            Er sagte ihr dann Lebewohl und dankte ihr für alle ihre Wohltaten gegen
+                            ihn während des Winters, und früh am nächsten Morgen machte er sich auf
+                            den Weg, und als er ein kleines Stück gegangen war, wollte er sich nach
+                            der Halle umsehen, aber er sah weiter nichts als steinige Hügel und
+                            Felsen am südlichen Teil der Insel; dann ging er nach der Fischerhütte.
+
+                            An diesem Tage war mildes Wetter und die See ruhig, und als der Tag
+                            etwas verstrichen war, sah er ein Boot vom Lande herkommen; als die
+                            Bootsleute aber an die Insel gekommen waren, ging er ihnen entgegen.
+                            Als sie ihn erblickten, fürchteten sie sich, denn er war sehr dick und
+                            fett, und sie glaubten deshalb, daß es sein Geist sei; denn sie dachten
+                            nicht anders, als daß er im Winter gestorben wäre; und niemand wagte,
+                            ihn anzusprechen, viel weniger, zu ihm ans Land zu kommen. Schließlich
+                            aber stieg der Bootsführer doch ans Land und fragte ihn, ob er ein
+                            lebendiger Mensch sei oder ein Geist, oder ob er derselbe sei, der im
+                            Herbst auf der Insel zurückgeblieben wäre. Er sagte, daß er derselbe
+                            Mann wie im Herbst sei, als sie ihn dort zurückgelassen hätten. Der
+                            andere aber sagte, daß er nicht verstehen könne, wie er so lange ohne
+                            Nahrung hätte leben können. Der Inselmann sagte, daß der Seetang auf
+                            Selö keine schlechtere Nahrung sei als die Wassergrütze auf Holme. Mehr
+                            wollte er ihnen nicht erzählen; er stieg aber zu ihnen in das Boot, und
+                            sie ruderten ihn zurück nach Holme. Die meisten wunderten sich, ihn
+                            lebendig zurückkommen zu sehen, und viele Fragen wurden ihm gestellt,
+                            wie er den Winter über hätte leben können, niemand aber bekam mehr von
+                            ihm zu wissen, als jene auf der Insel von ihm erfahren hatten.
+
+                            Spät im Sommer war es eines Sonntags schönes Wetter, und es kamen
+                            viele Leute zur Kirche, und an diesem Tage wollte auch der Knecht
+                            dorthin. Als aber der Pfarrer und die ganze Gemeinde in die Kirche
+                            gekommen waren, stand eine Kinderwiege neben dem Altar, ehe man es sich
+                            versah, und eine golddurchwirkte Decke war über das Kind gebreitet,
+                            aber kein Mensch war zu sehen, nur sah man, daß eine schöne Frauenhand
+                            auf dem Rand der Wiege ruhte; alle wunderten sich hierüber und sahen
+                            sich an; der Pfarrer aber nahm das Wort und sagte, daß dies Kind
+                            getauft werden wolle, und daß es wohl nicht irrig wäre, daß irgend
+                            jemand in der Kirche in Beziehung zu ihm stehe, und am ehesten glaube
+                            er von seinem Knecht, daß er es im Frühjahr auf Selö zurückgelassen
+                            habe; der Knecht aber bestritt, etwas davon zu wissen. Da sagte der
+                            Pfarrer, er wolle es mit dem Namen des Knechts taufen, der aber
+                            leugnete wieder und sagte, daß er nichts mit der Sache zu tun hätte.
+                            Der Pfarrer erwiderte, daß er doch nicht ohne Menschenhilfe auf der
+                            Insel hätte leben können; der Knecht aber sagte, daß er das Kind nie
+                            anerkennen würde und verbot dem Pfarrer, es mit seinem Namen zu taufen.
+
+                            Da wurde die Wiege fortgerissen und verschwand in demselben Augenblick,
+                            und zugleich ertönte heftiges Weinen, das sich allmählich aus der
+                            Kirche verlor. Der Pfarrer und die anderen gingen ihm aus der Kirche
+                            nach. Da hörten sie das Weinen und das Schluchzen in der Richtung nach
+                            dem See verschwinden, die Decke aber lag auf dem Boden der Kirche und
+                            wurde auf Holme noch lange nach dieser Zeit benutzt.
+
+                            Alle wunderten sich über das Geschehene, am tiefsten jedoch war der
+                            Pfarrer davon ergriffen. Der Knecht aber verfiel später in Tiefsinn.
+                            Der Pfarrer fragte ihn, wie das denn käme, und dann erzählte er ihm
+                            alles, daß er den Winter über bei einem König und seiner Tochter
+                            gewohnt hätte, und daß es ihn sein Leben lang gereuen würde, daß er das
+                            Kind nicht anerkannt habe.
+
+                            Der Knecht war von diesem Tage an nicht mehr derselbe, und hiermit
+                            endet die Erzählung von dem Huldrekönig auf Selö.
+
+
+
+
+                            Das Sätermädchen
+
+
+                            Einmal wohnte auf dem Nordland ein Pfarrer, der ein Mädchen erzogen
+                            hatte. Hoch oben zwischen den Bergen lag die Säterwirtschaft[1] des
+                            Pfarrhofs, auf die der Pfarrer gern im Sommer seine Kühe und Schafe
+                            unter Aufsicht eines Sätermädchens und eines Hirten schickte. Als seine
+                            Pflegetochter älter geworden war, mußte sie der Haushaltung auf dem
+                            Säter vorstehen, und sie erledigte das so gut wie jede andere Arbeit;
+                            denn sie war ein kluges Frauenzimmer, hübsch anzusehen und flink in
+                            vielen Dingen. In diesem Teil des Landes hatte sie nicht ihresgleichen.
+                            Darum warben viele reiche Männer um ihre Hand; sie aber gab ihnen
+                            allen miteinander einen Korb. Der Pfarrer sprach einmal mit seiner
+                            Pflegetochter über dieses Kapitel und riet ihr, sich zu verheiraten,
+                            denn, sagte er, er wäre nun ein alter Mann und könnte ihr daher nicht
+                            immer eine Stütze sein. Sie aber wollte nichts davon hören; ihr
+                            Sinn sei weit von solchen Dingen entfernt, sagte sie; sie wäre sehr
+                            zufrieden, wie es sei, und nicht jeder hole sein Glück in der Ehe.
+                            Darüber wurde also vorläufig weiter nichts gesprochen.
+
+                            Als ein Teil des Winters verstrichen war, schien es den Leuten, als
+                            beginne das Sätermädchen etwas rundlich unter dem Gürtel zu werden,
+                            und je weiter es auf den Frühling zuging, desto runder wurde sie. Im
+                            Frühjahr sprach ihr Pflegevater wieder mit ihr; er bat sie jetzt, ihm
+                            offen und ehrlich zu sagen, wie es eigentlich mit ihr bestellt wäre;
+                            sie erwarte sicher ein Kind, meinte er, und darum wäre es am besten,
+                            daß sie in diesem Sommer nicht nach dem Säter zöge. Sie bestritt aber,
+                            daß sie ein Kind erwarte, es fehle ihr nichts, und ihre Arbeit auf dem
+                            Säter würde sie in diesem Sommer genau so tun, wie sie es früher getan
+                            hätte. Der Pfarrer sah, daß er nichts aus ihr herausbekommen könnte
+                            und ließ ihr daher ihren Willen; er beauftragte aber die Männer, die
+                            sie nach dem Säter begleiteten, sie nicht allein zu lassen, und das
+                            versprachen sie ihm hoch und heilig.
+
+                            Oben auf dem Säter war das Mädchen lustig und froh, und es verstrich
+                            eine Zeit, ohne daß etwas geschah. Die Leute beobachteten sie sehr
+                            genau und ließen sie nie allein.
+
+                            Da geschah es eines Abends, daß der Hirt alle Schafe und Kühe vermißte,
+                            und jeder, der seine Beine gebrauchen konnte, mußte den Säter
+                            verlassen, nur das Sätermädchen blieb allein zurück. Es ging langsam
+                            mit dem Suchen der Leute, ein dichter Nebel senkte sich herab, und
+                            deshalb fanden sie das Vieh erst gegen Morgen. Als sie wieder nach
+                            Hause kamen, war das Sätermädchen auf und ungewöhnlich flink und leicht
+                            auf den Füßen. Als eine Zeit vergangen war, sah man dann auch, daß sie
+                            nicht mehr so rund wie früher war; aber wie es zugegangen war, das
+                            wußte man nicht, auch fand man jetzt nicht, daß ihre Rundlichkeit so
+                            gewesen war, als wenn eine Frau ein Kind erwartet.
+
+                            Im Herbst zogen sie wieder nach Hause von dem Säter, Männer und Vieh,
+                            und da sah der Pfarrer, daß das Mädchen eine schlankere Gestalt
+                            hatte als sie im Winter zuvor gehabt hatte. Er drang in die übrigen
+                            Säterleute und fragte sie, ob sie wider seinen Befehl gehandelt und das
+                            Sätermädchen allein gelassen hätten. Sie aber erzählten ihm, wie es
+                            gewesen wäre, daß sie es nur ein einziges Mal verlassen hätten, um das
+                            fehlende Milchvieh zu suchen. Da wurde der Pfarrer zornig und wünschte
+                            ihnen die schwere Not, weil sie gegen seinen Befehl gehandelt hätten;
+                            im übrigen hätte er das im Frühjahr geahnt, als das Sätermädchen nach
+                            dem Säter zog.
+
+                            Im nächsten Winter kam ein Mann, der um die Pflegetochter des Pfarrers
+                            freien wollte; sie aber wollte nichts von seinem Freien wissen; der
+                            Pfarrer jedoch sagte, daß sie nichts abhielte, ihn zu heiraten; denn
+                            alle wären darin einig, ihn zu loben, und er sei aus gutem Geschlecht.
+                            Er hätte im letzten Frühjahr den Hof seines Vaters übernommen, und
+                            seine Mutter hätte ihr Altenteil bei ihm. Dieser Freier bekam also
+                            keinen Korb, gleichviel, ob mit dem Willen des Mädchens oder ohne ihn.
+                            Ihre Hochzeit wurde im Frühjahr beim Pfarrer gefeiert. Aber ehe der
+                            Braut ihr Brautkleid angezogen wurde, sagte sie zu ihrem Bräutigam:
+                            »Da du mich gegen meinen Willen heiratest, nehme ich dir jetzt das
+                            Versprechen ab, daß du niemals einen Wintergast beherbergst, ohne mich
+                            vorher davon benachrichtigt zu haben, denn sonst ergeht es dir übel!«
+                            Das versprach ihr der Mann.
+
+                            Dann wurde also die Hochzeit gefeiert, und sie zog mit ihrem Gebieter
+                            nach Hause und übernahm den Hausstand, aber ohne besondere Lust; denn
+                            sie war niemals froh, und ihr Gesicht war stets finster, obgleich sie
+                            der Mann auf Händen trug und kaum zuließ, daß sie die Hand in kaltes
+                            Wasser steckte. Jeden Sommer saß sie zu Hause, während die andern
+                            mit dem Heu auf der Wiese beschäftigt waren, und immer blieb ihre
+                            Schwiegermutter bei ihr, um sie zu erheitern und ihr beim Essenbereiten
+                            behilflich zu sein. Manchmal saßen sie und strickten und spannen, und
+                            die Alte erzählte dann Sagen, um ihre Schwiegertochter zu unterhalten.
+
+                            Einmal, als sie mit ihrer Erzählung fertig war, sagte die Alte zu ihrer
+                            Schwiegertochter, daß sie jetzt etwas erzählen müsse. Die andere aber
+                            erwiderte, daß sie keine Sagen kenne; als die Alte jedoch weiter in sie
+                            drang, versprach sie schließlich, die einzige Sage, die sie kenne, zu
+                            erzählen, und sie begann folgendermaßen:
+
+                            »Auf einem Hof lebte einmal ein Sätermädchen. Unweit des Säters lagen
+                            große Felsen, an denen sie oft vorbeiging. Darinnen wohnte ein schöner,
+                            junger Huldremann, den sie bald kennen lernte, und es entstand Liebe
+                            zwischen den beiden. Er war so gut und lieb zu den Mädchen, daß er
+                            ihr nie etwas abschlug und sich ihrem Willen stets in allem fügte.
+                            Das Ende vom Liede war, daß das Sätermädchen, als eine Zeit vergangen
+                            war, ein Kind erwartete. Als sie im nächsten Sommer nach dem Säter
+                            sollte, drang ihr Brotherr in sie, um zu erfahren, ob sie in gesegneten
+                            Umständen wäre; das aber bestritt sie und zog hinauf nach dem Säter,
+                            wie sie es zu tun pflegte. Ihr Herr bat aber diejenigen, die mit auf
+                            dem Säter waren, sie nie allein zu lassen, und das versprachen sie ihm.
+                            Trotzdem verließen sie sie einmal, um das Vieh zu suchen, und da fühlte
+                            sie Geburtswehen. Da kam ihr Liebhaber zu ihr, saß bei ihr und half ihr
+                            bei der Geburt, und darauf wusch und wickelte er das Kind. Ehe er aber
+                            mit dem Knaben fortging, ließ er sie aus einem Glas trinken, und das
+                            war der süßeste Trank, den ich je ...« hier fiel ihr das Knäuel, mit
+                            dem sie strickte, aus der Hand; sie bückte sich danach und verbesserte
+                            sich – »den sie je gekostet hatte, wollte ich sagen, und da wurde sie
+                            gesund und frei von allen Folgen. Von da an sahen sich der Huldremann
+                            und das Mädchen nicht wieder; gegen ihren Willen wurde sie mit einem
+                            anderen Manne verheiratet; ihr Sinn aber stand immer nach ihrem ersten
+                            Liebsten, und von dieser Zeit an sah sie nie einen frohen Tag. Und
+                            jetzt ist die Erzählung aus.«
+
+                            Ihre Schwiegermutter dankte ihr für die Erzählung und bewahrte sie im
+                            Gedächtnis. So verging wieder eine Zeit, ohne daß etwas geschah; die
+                            Frau ging wie immer umher und trug ihren Kummer, immer jedoch war sie
+                            gut und liebevoll gegen ihren Gebieter.
+
+                            Eines Sommers, als es schon weit in der Heuernte war, kamen zwei
+                            Männer, ein größerer und ein kleinerer, zu dem Bauern auf das Feld.
+                            Sie hatten beide breitkrempige Hüte auf dem Kopf, so daß man ihnen nur
+                            undeutlich ins Gesicht sehen konnte. Der größere nahm das Wort und
+                            bat den Bauern um Obdach für den Winter. Der Bauer antwortete, daß er
+                            niemand aufnehme, ohne daß seine Frau davon wisse, und sagte, daß er
+                            erst mit ihr über diese Angelegenheit sprechen wollte. Der Mann bat
+                            ihn, doch nicht so ungeschickt zu sprechen, als wenn ein so resoluter
+                            Mann derartig unter dem Pantoffel seiner Frau stände, daß er in solchen
+                            Kleinigkeiten wie die, zwei Menschen einen Winter lang in Kost zu
+                            nehmen, nicht selbst bestimmen dürfte. Das Ende war, daß der Bauer
+                            ihnen Winterobdach versprach, ohne daß er seine Frau erst darum befragt
+                            hatte.
+
+                            Abends kamen die Fremden mit dem Bauern nach Hause; er ließ sie in eine
+                            Kammer eintreten und bat sie, dort zu bleiben. Dann ging er zu seiner
+                            Frau und erzählte ihr, wie die Dinge standen. Die Frau wurde darüber
+                            sehr unwillig und sagte, daß das ihre erste Bitte gewesen wäre und
+                            wahrscheinlich auch die letzte sein würde. Da er die Fremden nun aber
+                            allein aufgenommen hätte, müßte es auch seine Sache sein, was aus ihrem
+                            Aufenthalt im Winter folgte; und dann wurde nicht mehr über die Sache
+                            gesprochen.
+
+                            Nun war alles ruhig, bis die Eheleute im Herbst zum Abendmahl gehen
+                            wollten. Es war damals Sitte, wie es heute noch in verschiedenen
+                            Gegenden auf Island der Fall ist, daß diejenigen, die zum Tische des
+                            Herrn wollen, zu allen Leuten auf dem Hof gehen, sie küssen und sie
+                            um Verzeihung für ihre Vergehen ihnen gegenüber bitten. Die Hausfrau
+                            war den Wintergästen bis zu diesem Tage ausgewichen und hatte sich nie
+                            vor ihnen sehen lassen, und auch diesmal ging sie nicht zu ihnen, um
+                            Abschied zu nehmen.
+
+                            Die Eheleute gingen fort. Als sie aber außerhalb der Einzäunung des
+                            Heimackers waren, fragte der Bauer seine Frau: »Du hast doch unseren
+                            Wintergästen auch Lebewohl gesagt?« Sie erwiderte: »Nein.« Er bat sie,
+                            doch nicht so gottlos zu handeln, fortzugehen, ohne sich vorher von
+                            ihnen verabschiedet zu haben. »In den meisten Dingen zeigst du, daß
+                            du mich wenig achtest, erstens darin, daß du diese Männer empfangen
+                            hast, ohne mich danach zu fragen, und nun darin, daß du mich zwingen
+                            willst, sie zu küssen. Jedoch will ich dir gehorchen, aber du mußt
+                            selbst die Folgen auf dich nehmen; denn es gilt mein Leben und aller
+                            Wahrscheinlichkeit nach auch deins.«
+
+                            Sie kehrte nun nach Hause zurück, und weil es so lange dauerte, bis
+                            sie wiederkam, kehrte der Bauer auch um und ging dorthin, wo er seine
+                            Wintergäste zu finden erwartete, und fand sie auch in ihrer Kammer.
+
+                            Da sah er, wie der größere Wintergast seine Frau umschlungen hatte und
+                            mit ihr auf dem Boden lag; und beider Herzen waren vor Gram gebrochen.
+                            Der andere Gast aber stand weinend neben ihnen, als der Bauer eintrat;
+                            gleich darauf verschwand er, ohne daß jemand wußte, wohin er gegangen
+                            war.
+
+                            Alle aber wußten jetzt von dem, was die Frau ihrer Schwiegermutter
+                            erzählt hatte, daß der größere Fremde der Huldremann gewesen war,
+                            den sie auf dem Säter kennen gelernt hatte, daß der andere aber, der
+                            verschwunden war, ihr Sohn gewesen war.`;
+
+        // Tokenize: Kleinschreibung, Satzzeichen entfernen, Split auf Leerzeichen
+        const tokens = text.toLowerCase()
+            .replace(/[^\w\s]/g, '')  // Satzzeichen entfernen
+            .split(/\s+/)
+            .filter(t => t.length > 0);
+
+        console.log("Tokens:", tokens);
+
+        // Vokabular erstellen
+        function buildVocabulary(tokens) {
+            const wordSet = new Set(tokens);
+            vocab = Array.from(wordSet);
+            word2index = {};
+            index2word = {};
+            vocab.forEach((word, idx) => {
+                word2index[word] = idx;
+                index2word[idx] = word;
+            });
+            return { word2index, index2word, vocab };
+        }
+
+
+
+        async function createModelAndTrain () {
+            
+            ({ word2index, index2word, vocab } = buildVocabulary(tokens));
+            vocabSize = vocab.length;
+
+            console.log("Vokabulargröße:", vocabSize);
+
+            // Parameter: Länge der Eingabesequenz (Wörter)
+            //const sequenceLength = 4;
+
+            // Sequenzen erzeugen für Training
+            function createSequences(tokens, word2index, sequenceLength) {
+            const inputs = [];
+            const targets = [];
+            for(let i = 0; i < tokens.length - sequenceLength; i++) {
+                const inputSeq = tokens.slice(i, i + sequenceLength).map(w => word2index[w]);
+                const target = word2index[tokens[i + sequenceLength]];
+                inputs.push(inputSeq);
+                targets.push(target);
+            }
+            return { inputs, targets };
+            }
+
+            const { inputs, targets } = createSequences(tokens, word2index, sequenceLength);
+            console.log("Anzahl Trainingsbeispiele:", inputs.length);
+
+            
+            // One-Hot Kodierung der Inputs und Targets
+            const xOneHot = inputs.map(seq => oneHotEncodeSequence(seq, vocabSize));
+            const yOneHot = oneHotEncodeTargets(targets, vocabSize);
+
+            // In Tensoren umwandeln
+            const xTrain = tf.tensor3d(xOneHot);   // [Samples, sequenceLength, vocabSize]
+            const yTrain = tf.tensor2d(yOneHot);   // [Samples, vocabSize]
+
+            
+
+            model = createModel(sequenceLength, vocabSize);
+            model.summary();
+
+            // --- Training ---
+
+            const epochs = 30;
+            const batchSize = 32;
+
+            await model.fit(xTrain, yTrain, {
+            epochs,
+            batchSize,
+            shuffle: true,
+            callbacks: {
+                onEpochEnd: (epoch, logs) => {
+                console.log(`Epoch ${epoch + 1}/${epochs} - Loss: ${logs.loss.toFixed(4)}, Accuracy: ${logs.acc || logs.accuracy}`);
+                }
+            }
+            });
+
+            //await model.save('indexeddb://lstm-modell-v1');
+            //await saveModel();
+
+            // Speicher freigeben
+            xTrain.dispose();
+            yTrain.dispose();
+        }
+
+        async function loadAndPrepareModel() {
+            model = await loadModelWeb('http\:\/\/localhost/mein-lstm-modell.json');
+            if (!model) {
+                alert('Kein Modell zum Generieren geladen!');
+                return false;
+            }
+            ({ word2index, index2word, vocab } = buildVocabulary(tokens));
+            vocabSize = vocab.length;
+            return true;
+        }
+
+
+        // Beispiel: Text erweitern mit Modellvorhersage (autoregressiv)
+        async function generateText(seedText, numWordsToGenerate = 5) {
+
+            if (!model) {
+                const loaded = await loadAndPrepareModel();
+                if (!loaded) return;
+            }
+
+            let currentTokens = seedText.toLowerCase()
+                .replace(/[^\w\s]/g, '')
+                .split(/\s+/)
+                .filter(t => t.length > 0);
+
+            console.log('Seed:', currentTokens.join(' '));
+
+            for(let i=0; i < numWordsToGenerate; i++) {
+                let inputSeq = currentTokens.slice(-sequenceLength);
+
+                if(inputSeq.length < sequenceLength) {
+                    const padLength = sequenceLength - inputSeq.length;
+                    inputSeq = new Array(padLength).fill(vocab[0]).concat(inputSeq);
+                }
+
+                const inputIdx = inputSeq.map(w => word2index[w] !== undefined ? word2index[w] : 0);
+
+                const inputOH = oneHotEncodeSequence(inputIdx, vocabSize);
+                const inputTensor = tf.tensor([inputOH]);
+
+                const prediction = model.predict(inputTensor);
+                const predictedIdx = (await prediction.argMax(-1).data())[0];   // .data() ist auch Promise!
+
+                const predictedWord = idx2word(predictedIdx);
+
+                currentTokens.push(predictedWord);
+
+                prediction.dispose();
+                inputTensor.dispose();
+            }
+
+            console.log('Generierter Text:', currentTokens.join(' '));
+            document.getElementById("vorhersage").textContent = currentTokens.join(' ');
+            return currentTokens.join(' ');
+        }
+
+        // Beispielaufruf:
+        //generateText('das ist ein beispieltext', 10);
+
+        
+        </script>
+        <h1>LSTM-Modell</h1>
+
+        <h2>Modell erstellen und trainieren</h2>
+        <button onclick="createModelAndTrain()">Modell trainieren</button>
+        <button onclick="saveModel()">Modell speichern</button>
+        <input type="file" id="upload-model" multiple />
+        <button onclick="loadModel()">Modell laden</button>
+        <button onclick="loadModelWeb('http\:\/\/localhost/mein-lstm-modell.json')">Modell laden extern</button>
+        <h2>Modell verwenden</h2>
+        <p>Prompt eingeben: </p><input type="text" id="user_prompt" style="width: 500px;" />
+        <button type="button" onclick="generateText(document.getElementById('user_prompt').value, 15)">Vorhersage starten</button> 
+        <button type="button" onclick="">Weiter</button>
+        <!--<p>Beispielaufruf mit dem Halbsatz "das ist ein beispieltext" und einer Vorhersage von 10 Worten:</p>-->
+        
+        <p id="vorhersage"></p>
+        <br/>
+        <br/>
+        <p>start xampp: sudo /opt/lampp/lampp start</p>
+    </body>
+</html>
+
+
+
+
