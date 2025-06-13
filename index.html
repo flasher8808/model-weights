@@ -87,7 +87,18 @@
 
             try {
                 const model = await tf.loadLayersModel(modelUrl);
-                console.log('Modell erfolgreich geladen!');
+                console.log('Modell erfolgreich via https geladen!');
+                window.model = model;
+                console.log(model);
+                return model;
+            } catch (e) {
+                console.error('Fehler beim Laden des Modells:', e);
+                alert('Fehler beim Laden des Modells: ' + e.message);
+                return null;
+            }
+            try {
+                const model = await tf.loadLayersModel('http\:\/\/localhost/mein-lstm-modell.json');
+                console.log('Modell erfolgreich lokal geladen!');
                 window.model = model;
                 console.log(model);
                 return model;
