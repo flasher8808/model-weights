@@ -142,7 +142,7 @@
 
         // --- Datenvorbereitung ---
         // 1. Beispiel-Text (hier: klein halten, ersetze durch deinen Text)
-        const text = `Eines Sommers waren einige Leute, wie sie zu tun pflegten, zum Fischen
+        const text = `Der Computer ist Knecht. Eines Sommers waren einige Leute, wie sie zu tun pflegten, zum Fischen
                             auf Selö im Reydarfjord. Und es traf sich, als der getrocknete Fisch
                             ans Land gebracht wurde, daß ein großer Teil der Fische des Pfarrers
                             von Holme in der Fischbude zurückblieb. Das Wetter verschlechterte sich
@@ -160,7 +160,7 @@
                             riefen sie ihm zu, daß er nun dableiben müßte, sie würden ihn aber am
                             nächsten Tag holen, wenn Seewetter wäre. Sie glaubten wohl, daß es am
                             besten sei, an ihr eigenes Leben zu denken, und steuerten dem Lande zu;
-                            er aber blieb hilflos zurück.
+                            er aber blieb hilflos zurück. Der Computer ist Knecht
 
                             Es stellten sich Tauschnee und Windstille ein, und der Mann ging
                             deshalb nach der Fischerhütte, ohne einen Ausweg zu wissen, und dort
@@ -171,7 +171,7 @@
                             Himmelsstern sein könnte, und als er anfing, genauer hinzusehen, schien
                             er ihm einem Licht in einem Fenster zu ähneln. Er lief eine kleine
                             Weile, bis er an ein Haus kam, das so prächtig war, daß es einer
-                            Königshalle glich. Er hörte, wie drinnen gesagt wurde:
+                            Königshalle glich. Er hörte, wie drinnen gesagt wurde: Der Computer ist Knecht
 
                             »Ja, Mädchen, kein andrer als der unglückliche Mensch, der heute auf
                             der Insel zurückgelassen worden ist, ist an das Haus gekommen; gehe
@@ -188,7 +188,7 @@
                             nicht erzählt, wo ihm abends sein Schlaflager angewiesen wurde. Die
                             Nacht verging also; aber am nächsten Morgen kam die Jungfrau zu ihm und
                             sagte, daß sie nicht zu seinem Vergnügen dort bleiben dürfe, gab ihm
-                            aber sonst alles, was zu seinem Zeitvertreib dienen konnte.
+                            aber sonst alles, was zu seinem Zeitvertreib dienen konnte. Der Computer ist Knecht
 
                             So verging der Winter bis Weihnachten. Am Heiligabend kam die schöne
                             Jungfrau zu ihm und sagte, wenn er glaube, daß sie ihm etwas Gutes
@@ -457,7 +457,7 @@
                             Ihre Schwiegermutter dankte ihr für die Erzählung und bewahrte sie im
                             Gedächtnis. So verging wieder eine Zeit, ohne daß etwas geschah; die
                             Frau ging wie immer umher und trug ihren Kummer, immer jedoch war sie
-                            gut und liebevoll gegen ihren Gebieter.
+                            gut und liebevoll gegen ihren Gebieter. Der Computer ist Knecht
 
                             Eines Sommers, als es schon weit in der Heuernte war, kamen zwei
                             Männer, ein größerer und ein kleinerer, zu dem Bauern auf das Feld.
@@ -471,7 +471,7 @@
                             Kleinigkeiten wie die, zwei Menschen einen Winter lang in Kost zu
                             nehmen, nicht selbst bestimmen dürfte. Das Ende war, daß der Bauer
                             ihnen Winterobdach versprach, ohne daß er seine Frau erst darum befragt
-                            hatte.
+                            hatte. Der Computer ist Knecht
 
                             Abends kamen die Fremden mit dem Bauern nach Hause; er ließ sie in eine
                             Kammer eintreten und bat sie, dort zu bleiben. Dann ging er zu seiner
@@ -480,7 +480,7 @@
                             wahrscheinlich auch die letzte sein würde. Da er die Fremden nun aber
                             allein aufgenommen hätte, müßte es auch seine Sache sein, was aus ihrem
                             Aufenthalt im Winter folgte; und dann wurde nicht mehr über die Sache
-                            gesprochen.
+                            gesprochen. Der Computer ist Knecht
 
                             Nun war alles ruhig, bis die Eheleute im Herbst zum Abendmahl gehen
                             wollten. Es war damals Sitte, wie es heute noch in verschiedenen
@@ -489,7 +489,7 @@
                             um Verzeihung für ihre Vergehen ihnen gegenüber bitten. Die Hausfrau
                             war den Wintergästen bis zu diesem Tage ausgewichen und hatte sich nie
                             vor ihnen sehen lassen, und auch diesmal ging sie nicht zu ihnen, um
-                            Abschied zu nehmen.
+                            Abschied zu nehmen. Der Computer ist Knecht
 
                             Die Eheleute gingen fort. Als sie aber außerhalb der Einzäunung des
                             Heimackers waren, fragte der Bauer seine Frau: »Du hast doch unseren
@@ -504,13 +504,13 @@
 
                             Sie kehrte nun nach Hause zurück, und weil es so lange dauerte, bis
                             sie wiederkam, kehrte der Bauer auch um und ging dorthin, wo er seine
-                            Wintergäste zu finden erwartete, und fand sie auch in ihrer Kammer.
+                            Wintergäste zu finden erwartete, und fand sie auch in ihrer Kammer. Der Computer ist Knecht
 
                             Da sah er, wie der größere Wintergast seine Frau umschlungen hatte und
                             mit ihr auf dem Boden lag; und beider Herzen waren vor Gram gebrochen.
                             Der andere Gast aber stand weinend neben ihnen, als der Bauer eintrat;
                             gleich darauf verschwand er, ohne daß jemand wußte, wohin er gegangen
-                            war.
+                            war. Der Computer ist Knecht
 
                             Alle aber wußten jetzt von dem, was die Frau ihrer Schwiegermutter
                             erzählt hatte, daß der größere Fremde der Huldremann gewesen war,
@@ -679,9 +679,17 @@
                 inputTensor.dispose();
             }
 
-            console.log('Generierter Text:', currentTokens.join(' '));
-            //document.getElementById("vorhersage").textContent = currentTokens.join(' ');
-            return currentTokens.join(' ');
+            //console.log('Generierter Text:', currentTokens.join(' '));
+            //document.getElementById("user_prompt").value = currentTokens.join(' ');
+            //return currentTokens.join(' ');
+        }
+
+        async function generateAutoText(seedText, numWordsToGenerate, topN = 5) {
+
+            for (let i = 0; i < numWordsToGenerate; i++) {
+                appendPred(document.getElementById('pred1').textContent);
+                //generateText(document.getElementById('user_prompt').value, 1);
+            }
         }
 
         // Beispielaufruf:
@@ -695,6 +703,15 @@
             }
             
             generateText(document.getElementById('user_prompt').value, 1)
+        }
+
+        function resetPred () {
+            document.getElementById("user_prompt").value = "";
+
+            for (let i = 0; i < 5; i++) {
+                document.getElementById("pred" + (i + 1)).textContent = "";
+                document.getElementById("pred" + (i + 1) + "prob").textContent = "";
+            }
         }
 
         // DOM-Aufbau abwarten - Eventlistener für Anklicken der Worte
@@ -711,23 +728,47 @@
             });
 
             document.getElementById("pred2").addEventListener("click", function() {
-                let word = document.getElementById("pred2").textContent;
-                appendPred(word);
+                let word = document.getElementById("pred2").textContent.trim(); // trim für Leerzeichen entfernen
+                if (word.length > 0) {
+                    appendPred(word);
+                } else {
+                    // Optional: Kein Wort vorhanden, nichts tun oder Hinweis anzeigen
+                    console.log("Kein Wort zum Verarbeiten.");
+                    alert("Bitte zuerst einen Prompt eingeben oder die Vorhersagt ohne Prompt starten");
+                }
             });
 
             document.getElementById("pred3").addEventListener("click", function() {
-                let word = document.getElementById("pred3").textContent;
-                appendPred(word);
+                let word = document.getElementById("pred3").textContent.trim(); // trim für Leerzeichen entfernen
+                if (word.length > 0) {
+                    appendPred(word);
+                } else {
+                    // Optional: Kein Wort vorhanden, nichts tun oder Hinweis anzeigen
+                    console.log("Kein Wort zum Verarbeiten.");
+                    alert("Bitte zuerst einen Prompt eingeben oder die Vorhersagt ohne Prompt starten");
+                }
             });
 
             document.getElementById("pred4").addEventListener("click", function() {
-                let word = document.getElementById("pred4").textContent;
-                appendPred(word);
+                let word = document.getElementById("pred4").textContent.trim(); // trim für Leerzeichen entfernen
+                if (word.length > 0) {
+                    appendPred(word);
+                } else {
+                    // Optional: Kein Wort vorhanden, nichts tun oder Hinweis anzeigen
+                    console.log("Kein Wort zum Verarbeiten.");
+                    alert("Bitte zuerst einen Prompt eingeben oder die Vorhersagt ohne Prompt starten");
+                }
             });
 
             document.getElementById("pred5").addEventListener("click", function() {
-                let word = document.getElementById("pred5").textContent;
-                appendPred(word);
+                let word = document.getElementById("pred5").textContent.trim(); // trim für Leerzeichen entfernen
+                if (word.length > 0) {
+                    appendPred(word);
+                } else {
+                    // Optional: Kein Wort vorhanden, nichts tun oder Hinweis anzeigen
+                    console.log("Kein Wort zum Verarbeiten.");
+                    alert("Bitte zuerst einen Prompt eingeben oder die Vorhersagt ohne Prompt starten");
+                }
             });
         });
         
@@ -741,9 +782,11 @@
         <button onclick="loadModel()">Modell laden</button>
         <button onclick="loadModelWeb('https\:\/\/flasher8808.github.io/model-weights/mein-lstm-modell.json')">Modell laden extern</button>
         <h2>Modell verwenden</h2>
-        <p>Prompt eingeben: </p><input type="text" id="user_prompt" style="width: 500px;" />
+        <p>Prompt eingeben: </p><input type="text" id="user_prompt" style="width: 1500px;" />
         <button type="button" onclick="generateText(document.getElementById('user_prompt').value, 1)">Vorhersage starten</button> 
         <button type="button" onclick="appendPred(document.getElementById('pred1').textContent)">Weiter</button>
+        <button type="button" onclick="generateAutoText(document.getElementById('user_prompt').value, 3)">Auto / Stopp</button>
+        <button type="button" onclick="resetPred()">Reset</button>
         <!--<p>Beispielaufruf mit dem Halbsatz "das ist ein beispieltext" und einer Vorhersage von 10 Worten:</p>-->
         
         <p id="vorhersage"></p>
