@@ -616,8 +616,7 @@
         }
 
 
-        // Beispiel: Text erweitern mit Modellvorhersage (autoregressiv)
-        async function generateText(seedText, numWordsToGenerate = 5) {
+        async function generateText(seedText, numWordsToGenerate, topN = 5) {
 
             if (!model) {
                 const loaded = await loadAndPrepareModel();
@@ -631,10 +630,10 @@
 
             console.log('Seed:', currentTokens.join(' '));
 
-            for(let i=0; i < numWordsToGenerate; i++) {
+            for (let i = 0; i < numWordsToGenerate; i++) {
                 let inputSeq = currentTokens.slice(-sequenceLength);
 
-                if(inputSeq.length < sequenceLength) {
+                if (inputSeq.length < sequenceLength) {
                     const padLength = sequenceLength - inputSeq.length;
                     inputSeq = new Array(padLength).fill(vocab[0]).concat(inputSeq);
                 }
@@ -644,9 +643,34 @@
                 const inputOH = oneHotEncodeSequence(inputIdx, vocabSize);
                 const inputTensor = tf.tensor([inputOH]);
 
-                const prediction = model.predict(inputTensor);
-                const predictedIdx = (await prediction.argMax(-1).data())[0];   // .data() ist auch Promise!
+                const prediction = model.predict(inputTensor);  // Form: [1, vocabSize] evtl
 
+                // Erhalte das Wahrscheinlichkeitsarray (Float32Array)
+                const predictionData = await prediction.data();
+
+                // predictionData ist Array mit Wahrscheinlichkeiten für jedes Wort im Vokabular
+
+                // Finde die Top N Wahrscheinlichkeiten und deren Indizes
+                const topIndices = Array.from(predictionData.keys())
+                    .map(i => ({index: i, prob: predictionData[i]}))
+                    .sort((a, b) => b.prob - a.prob)
+                    .slice(0, topN);
+
+                console.log('Top Worte und Wahrscheinlichkeiten:', topIndices.map(item => ({
+                    word: idx2word(item.index),
+                    probability: item.prob
+                })));
+
+                for (let j = 0; j < topIndices.length; j++) {
+                    document.getElementById("pred" + (j+1)).textContent = idx2word(topIndices[j].index);
+                    document.getElementById("pred" + (j+1) + "prob").textContent = (topIndices[j].prob * 100).toFixed(1);
+                    //console.log(idx2word(topIndices[j].index));
+                    //console.log(topIndices[j].index);
+                    //console.log(topIndices[j].prob);
+                }
+
+                // Nimm als nächsten Schritt das wahrscheinlichste Wort
+                const predictedIdx = topIndices[0].index;
                 const predictedWord = idx2word(predictedIdx);
 
                 currentTokens.push(predictedWord);
@@ -656,13 +680,56 @@
             }
 
             console.log('Generierter Text:', currentTokens.join(' '));
-            document.getElementById("vorhersage").textContent = currentTokens.join(' ');
+            //document.getElementById("vorhersage").textContent = currentTokens.join(' ');
             return currentTokens.join(' ');
         }
 
         // Beispielaufruf:
         //generateText('das ist ein beispieltext', 10);
 
+        function appendPred (word) {
+            if (document.getElementById("user_prompt").value.length == 0) {
+                document.getElementById("user_prompt").value = word;
+            } else {
+                document.getElementById("user_prompt").value = document.getElementById("user_prompt").value + " " + word;
+            }
+            
+            generateText(document.getElementById('user_prompt').value, 1)
+        }
+
+        // DOM-Aufbau abwarten - Eventlistener für Anklicken der Worte
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById("pred1").addEventListener("click", function() {
+                let word = document.getElementById("pred1").textContent.trim(); // trim für Leerzeichen entfernen
+                if (word.length > 0) {
+                    appendPred(word);
+                } else {
+                    // Optional: Kein Wort vorhanden, nichts tun oder Hinweis anzeigen
+                    console.log("Kein Wort zum Verarbeiten.");
+                    alert("Bitte zuerst einen Prompt eingeben oder die Vorhersagt ohne Prompt starten");
+                }
+            });
+
+            document.getElementById("pred2").addEventListener("click", function() {
+                let word = document.getElementById("pred2").textContent;
+                appendPred(word);
+            });
+
+            document.getElementById("pred3").addEventListener("click", function() {
+                let word = document.getElementById("pred3").textContent;
+                appendPred(word);
+            });
+
+            document.getElementById("pred4").addEventListener("click", function() {
+                let word = document.getElementById("pred4").textContent;
+                appendPred(word);
+            });
+
+            document.getElementById("pred5").addEventListener("click", function() {
+                let word = document.getElementById("pred5").textContent;
+                appendPred(word);
+            });
+        });
         
         </script>
         <h1>LSTM-Modell</h1>
@@ -675,11 +742,55 @@
         <button onclick="loadModelWeb('https\:\/\/flasher8808.github.io/model-weights/mein-lstm-modell.json')">Modell laden extern</button>
         <h2>Modell verwenden</h2>
         <p>Prompt eingeben: </p><input type="text" id="user_prompt" style="width: 500px;" />
-        <button type="button" onclick="generateText(document.getElementById('user_prompt').value, 15)">Vorhersage starten</button> 
-        <button type="button" onclick="">Weiter</button>
+        <button type="button" onclick="generateText(document.getElementById('user_prompt').value, 1)">Vorhersage starten</button> 
+        <button type="button" onclick="appendPred(document.getElementById('pred1').textContent)">Weiter</button>
         <!--<p>Beispielaufruf mit dem Halbsatz "das ist ein beispieltext" und einer Vorhersage von 10 Worten:</p>-->
         
         <p id="vorhersage"></p>
+        <br/>
+        <h2>Vorhersage nächste Wörter</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                <th></th>
+                <th>Wort</th>
+                <th>Wahrscheinlichkeit</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                <td>1</td>
+                <td id="pred1"></td>
+                <td id="pred1prob"></td>
+                </tr>
+                <tr>
+                <td>2</td>
+                <td id="pred2"></td>
+                <td id="pred2prob"></td>
+                </tr>
+                <tr>
+                <td>3</td>
+                <td id="pred3"></td>
+                <td id="pred3prob"></td>
+                </tr>
+                <tr>
+                <td>4</td>
+                <td id="pred4"></td>
+                <td id="pred4prob"></td>
+                </tr>
+                <tr>
+                <td>5</td>
+                <td id="pred5"></td>
+                <td id="pred5prob"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p id="pred1"></p>
+        <p id="pred2"></p>
+        <p id="pred3"></p>
+        <p id="pred4"></p>
+        <p id="pred5"></p>
         <br/>
         <br/>
         <p>start xampp: sudo /opt/lampp/lampp start</p>
