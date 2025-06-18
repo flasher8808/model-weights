@@ -91,6 +91,7 @@
                 const model = await tf.loadLayersModel(modelUrl);
                 console.log('Modell erfolgreich via https geladen!');
                 window.model = model;
+                loadVocabularyWeb();
                 return model;
             } catch (e) {
                 console.error('Fehler beim Laden des Modells:', e);
@@ -110,6 +111,7 @@
             URL.revokeObjectURL(url);
         }
 
+
         async function loadVocabulary(file) {
             const text = await file.text();
             const data = JSON.parse(text);
@@ -117,6 +119,31 @@
             index2word = data.index2word;
             vocab = data.vocab;
             vocabSize = vocab.length;
+        }
+
+        async function loadVocabularyWeb() {
+            try {
+                let vocabUrl = 'https://flasher8808.github.io/model-weights/vocab.json';
+                // Die JSON-Datei vom Server abrufen
+                const response = await fetch(vocabUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP-Fehler! Status: ${response.status}`);
+                }
+                
+                // JSON-Daten parsen
+                const data = await response.json();
+                word2index = data.word2index;
+                index2word = data.index2word;
+                vocab = data.vocab;
+                vocabSize = vocab.length;
+                
+                console.log('Vokabular erfolgreich geladen:', vocab);
+                return vocab;
+            } catch (error) {
+                console.error('Fehler beim Laden des Vokabulars:', error);
+                alert('Fehler beim Laden des Vocabs: ' + e.message);
+            }
+
         }
 
         // --- Modell bauen ---
@@ -1126,7 +1153,7 @@
             }
 
             let currentTokens = seedText.toLowerCase()
-                .replace(/[^\w\s]/g, '')
+                .replace(/[^a-zA-Z0-9äöüß\s]/g, '')
                 .split(/\s+/)
                 .filter(t => t.length > 0);
 
@@ -1280,9 +1307,10 @@
         <h2>Modell erstellen und trainieren</h2>
         <button onclick="createModelAndTrain()">Modell trainieren</button>
         <button onclick="saveModel()">Modell speichern</button>
+        <button onclick="loadModelWeb()">Modell laden extern</button>
+        <br/>
         <input type="file" id="upload-model" multiple />
         <button onclick="loadModel()">Modell laden</button>
-        <button onclick="loadModelWeb()">Modell laden extern</button>
         <input type="file" id="upload-vocab" />
         <button onclick="loadVocabulary(document.getElementById('upload-vocab').files[0])">Vokabular laden</button>
         <h2>Modell verwenden</h2>
