@@ -80,7 +80,8 @@
             }
         }
 
-        async function loadModelWeb(modelUrl) {
+        async function loadModelWeb() {
+            let modelUrl = 'https\:\/\/flasher8808.github.io/model-weights/lstm-v0.json';
             if (!modelUrl || typeof modelUrl !== 'string') {
                 alert('Bitte eine gültige Modell-URL angeben!');
                 return null;
@@ -270,7 +271,7 @@
         }
 
         async function loadAndPrepareModel() {
-            model = await loadModelWeb('https\:\/\/flasher8808.github.io/model-weights/mein-lstm-modell.json');
+            model = await loadModelWeb();
             if (!model) {
                 alert('Kein Modell zum Generieren geladen!');
                 return false;
@@ -445,7 +446,7 @@
         <button onclick="saveModel()">Modell speichern</button>
         <input type="file" id="upload-model" multiple />
         <button onclick="loadModel()">Modell laden</button>
-        <button onclick="loadModelWeb('https\:\/\/flasher8808.github.io/model-weights/mein-lstm-modell.json')">Modell laden extern</button>
+        <button onclick="loadModelWeb()">Modell laden extern</button>
         <input type="file" id="upload-vocab" />
         <button onclick="loadVocabulary(document.getElementById('upload-vocab').files[0])">Vokabular laden</button>
         <h2>Modell verwenden</h2>
