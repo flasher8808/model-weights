@@ -124,13 +124,19 @@
             model = tf.sequential();
 
             model.add(tf.layers.lstm({
-                units: 100,
+                units: 500,
                 returnSequences: true,
                 inputShape: [sequenceLength, vocabSize]
             }));
 
             model.add(tf.layers.lstm({
-                units: 100,
+                units: 500,
+                returnSequences: true,
+                inputShape: [sequenceLength, vocabSize]
+            }));
+
+            model.add(tf.layers.lstm({
+                units: 500,
                 returnSequences: false
             }));
 
